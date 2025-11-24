@@ -1,80 +1,408 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start'
+description: 'Get your local development environment running in 5 minutes'
+icon: 'rocket'
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+## Prerequisites
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Node.js" icon="node-js">
+    Version 18 or higher
+    
+    [Download Node.js](https://nodejs.org/)
+  </Card>
+  
+  <Card title="Python" icon="python">
+    Version 3.11 or higher
+    
+    [Download Python](https://python.org/)
+  </Card>
+  
+  <Card title="Docker" icon="docker">
+    For PostgreSQL & Redis
+    
+    [Download Docker](https://docker.com/)
+  </Card>
+  
+  <Card title="Git" icon="git">
+    Version control
+    
+    [Download Git](https://git-scm.com/)
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## 5-Minute Setup
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/yourusername/n-aible.git
+    cd n-aible
+    ```
+  </Step>
+
+  <Step title="Start Docker Services">
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This starts:
+    - PostgreSQL on port 5432
+    - Redis on port 6379
+    
+    <Check>Wait ~30 seconds for services to be ready</Check>
+  </Step>
+
+  <Step title="Setup Backend">
+    ```bash
+    cd backend
+    
+    # Create virtual environment
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    
+    # Setup environment
+    cp ../env_template.txt .env
+    ```
+    
+    <Warning>
+      Edit `.env` and add your API keys:
+      - `OPENAI_API_KEY=sk-...`
+      - `LLAMAPARSE_API_KEY=llx-...`
+    </Warning>
+    
+    ```bash
+    # Run database migrations
+    cd database
+    alembic upgrade head
+    cd ..
+    
+    # Start backend server
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    ```
+  </Step>
+
+  <Step title="Setup Frontend">
+    Open a new terminal:
+    
+    ```bash
+    cd frontend
+    
+    # Install dependencies
+    npm install  # or pnpm install
+    
+    # Start dev server
+    npm run dev  # or pnpm dev
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    Open your browser and check:
+    
+    - **Frontend**: [http://localhost:3000](http://localhost:3000)
+    - **Backend API**: [http://localhost:8000/docs](http://localhost:8000/docs)
+    - **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+    
+    <Check>You should see the login page!</Check>
+  </Step>
+</Steps>
+
+## Alternative: Manual Database Setup
+
+If you prefer not to use Docker:
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```bash
+    # Install PostgreSQL (macOS)
+    brew install postgresql
+    
+    # Install PostgreSQL (Ubuntu)
+    sudo apt-get install postgresql
+    
+    # Create database
+    createdb ai_agent_platform
+    
+    # Enable extensions
+    psql ai_agent_platform -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    ```
+    
+    Update your `.env`:
+    ```bash
+    DATABASE_URL=postgresql://localhost:5432/ai_agent_platform
+    ```
+  </Tab>
+  
+  <Tab title="Redis">
+    ```bash
+    # Install Redis (macOS)
+    brew install redis
+    brew services start redis
+    
+    # Install Redis (Ubuntu)
+    sudo apt-get install redis-server
+    sudo systemctl start redis
+    ```
+    
+    Update your `.env`:
+    ```bash
+    REDIS_URL=redis://localhost:6379
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Configuration
+
+<AccordionGroup>
+  <Accordion title="Required Variables">
+    ```bash .env
+    # Database
+    DATABASE_URL=postgresql://username:password@localhost:5432/ai_agent_platform
+    
+    # AI Services
+    OPENAI_API_KEY=sk-...
+    LLAMAPARSE_API_KEY=llx-...
+    
+    # Security
+    SECRET_KEY=your-secret-key-at-least-32-characters
+    
+    # Environment
+    ENVIRONMENT=development
+    ```
+  </Accordion>
+  
+  <Accordion title="Optional Variables">
+    ```bash .env
+    # Redis
+    REDIS_URL=redis://localhost:6379
+    
+    # Google OAuth
+    GOOGLE_CLIENT_ID=...
+    GOOGLE_CLIENT_SECRET=...
+    GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
+    
+    # Additional AI
+    ANTHROPIC_API_KEY=sk-...
+    GEMINI_API_KEY=...
+    
+    # Storage (AWS/Wasabi)
+    AWS_ACCESS_KEY_ID=...
+    AWS_SECRET_ACCESS_KEY=...
+    AWS_BUCKET_NAME=...
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting API Keys
+
+<CardGroup cols={2}>
+  <Card title="OpenAI API Key" icon="openai">
+    1. Go to [platform.openai.com](https://platform.openai.com)
+    2. Sign up or log in
+    3. Navigate to API Keys
+    4. Create new secret key
+    5. Copy and save immediately
+  </Card>
+  
+  <Card title="LlamaParse API Key" icon="file-pdf">
+    1. Go to [cloud.llamaindex.ai](https://cloud.llamaindex.ai)
+    2. Sign up or log in
+    3. Navigate to API Keys
+    4. Create new API key
+    5. Copy and save
+  </Card>
+  
+  <Card title="Google OAuth" icon="google">
+    1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+    2. Create new project
+    3. Enable Google+ API
+    4. Create OAuth 2.0 credentials
+    5. Set redirect URI
+    
+    See [Google OAuth Setup](/setup/google-oauth)
+  </Card>
+  
+  <Card title="Anthropic (Optional)" icon="robot">
+    1. Go to [console.anthropic.com](https://console.anthropic.com)
+    2. Sign up or log in
+    3. Navigate to API Keys
+    4. Create new key
+    5. Copy and save
+  </Card>
+</CardGroup>
+
+## First Steps
+
+<Steps>
+  <Step title="Create an Account">
+    Navigate to [http://localhost:3000/signup](http://localhost:3000/signup)
+    
+    - Choose role: Professor or Student
+    - Enter email and password
+    - Or use Google OAuth
+  </Step>
+
+  <Step title="Upload a PDF (Professor)">
+    1. Go to Simulation Builder
+    2. Upload a business case PDF
+    3. Watch AI extract scenarios
+    4. Review generated personas and scenes
+  </Step>
+
+  <Step title="Start a Simulation (Student)">
+    1. Browse available scenarios
+    2. Click "Start Simulation"
+    3. Type `begin` to start
+    4. Chat with AI personas
+  </Step>
+</Steps>
+
+## Verify Everything Works
+
+<AccordionGroup>
+  <Accordion title="Backend Health Check">
+    ```bash
+    curl http://localhost:8000/health
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "status": "healthy",
+      "timestamp": "2024-11-24T...",
+      "service": "backend"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Database Connection">
+    ```bash
+    curl http://localhost:8000/api/test-db
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "status": "ok",
+      "scenario_count": 0
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Frontend">
+    Open [http://localhost:3000](http://localhost:3000)
+    
+    You should see the login/signup page with:
+    - Email/password login form
+    - Google OAuth button
+    - Role selection (Professor/Student)
+  </Accordion>
+  
+  <Accordion title="API Documentation">
+    Open [http://localhost:8000/docs](http://localhost:8000/docs)
+    
+    You should see:
+    - Interactive Swagger UI
+    - All API endpoints
+    - Try-it-out functionality
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<Warning>
+  **"Could not connect to database"**
+  
+  - Check Docker is running: `docker-compose ps`
+  - Verify DATABASE_URL in `.env`
+  - Wait 30 seconds for PostgreSQL to initialize
+</Warning>
+
+<Warning>
+  **"OpenAI API error"**
+  
+  - Check OPENAI_API_KEY in `.env`
+  - Verify API key is valid
+  - Check you have API credits
+</Warning>
+
+<Warning>
+  **"Module not found" errors**
+  
+  - Activate virtual environment: `source venv/bin/activate`
+  - Reinstall dependencies: `pip install -r requirements.txt`
+</Warning>
+
+<Warning>
+  **Frontend won't start**
+  
+  - Clear npm cache: `npm cache clean --force`
+  - Delete node_modules: `rm -rf node_modules`
+  - Reinstall: `npm install`
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Architecture" icon="sitemap" href="/architecture/overview">
+    Learn about our modular backend design
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/auth/register">
+    Browse all available endpoints
+  </Card>
+  
+  <Card title="Development Guide" icon="book" href="/development/getting-started">
+    Learn development patterns
+  </Card>
+  
+  <Card title="Deploy" icon="rocket" href="/development/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>
+
+## Development Workflow
+
+Once everything is running:
+
+```bash
+# Terminal 1: Backend with auto-reload
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --reload
+
+# Terminal 2: Frontend with hot reload
+cd frontend
+npm run dev
+
+# Terminal 3: Watch logs
+docker-compose logs -f postgres redis
+```
+
+<Check>
+  **Success!** You're now ready to start developing. Check out the [Developer Guide](/development/getting-started) for best practices and patterns.
+</Check>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Documentation" icon="book" href="/">
+    Browse complete documentation
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/yourusername/n-aible/issues">
+    Report bugs or request features
+  </Card>
+  
+  <Card title="Discussions" icon="comments" href="https://github.com/yourusername/n-aible/discussions">
+    Ask questions and get help
+  </Card>
+  
+  <Card title="Quick Reference" icon="bookmark" href="/quick-reference">
+    Common commands and patterns
+  </Card>
+</CardGroup>

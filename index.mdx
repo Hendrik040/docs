@@ -1,97 +1,188 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: n-aible EdTech Platform
+description: 'Transform business case studies into immersive AI-powered simulations'
 ---
 
-## Setting up
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Hero Dark"
+/>
 
-Get your documentation site up and running in minutes.
+## Welcome to n-aible
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+The **AI Agent Education Platform** transforms business case studies into immersive AI-powered simulations using a modular, feature-based architecture.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Get your local development environment running in 5 minutes
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Architecture"
+    icon="sitemap"
+    href="/architecture/overview"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Explore our modular, feature-based backend architecture
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
+    title="API Reference"
     icon="code"
-    href="/essentials/code"
+    href="/api/auth/register"
   >
-    Add sample code to demonstrate how to use your product.
+    Complete API documentation for all endpoints
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="Developer Guide"
+    icon="book"
+    href="/development/getting-started"
   >
-    Display images and other media.
+    Learn development patterns and best practices
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+</CardGroup>
+
+## Platform Overview
+
+<AccordionGroup>
+  <Accordion title="PDF-to-Simulation Pipeline">
+    Upload business case studies and let AI automatically extract scenarios, personas, and learning objectives. Uses **LlamaParse** for PDF processing and **OpenAI GPT-4** for content extraction.
+    
+    - Intelligent PDF processing
+    - AI persona generation
+    - Automatic scene creation
+    - DALL-E 3 image generation
+  </Accordion>
+
+  <Accordion title="AI-Powered Simulations">
+    Students engage in structured, multi-scene learning experiences with dynamic AI personas.
+    
+    - Linear scene progression
+    - AI persona interactions
+    - Real-time feedback
+    - Progress tracking
+  </Accordion>
+
+  <Accordion title="Cohort Management">
+    Professors can create learning groups, invite students, and track progress.
+    
+    - Create and manage cohorts
+    - Student invitation system
+    - Progress analytics
+    - Grading interface
+  </Accordion>
+
+  <Accordion title="Modular Architecture">
+    Feature-based backend structure with clear separation of concerns.
+    
+    - Repository pattern
+    - Service layer
+    - One-way dependencies
+    - Redis caching
+  </Accordion>
+</AccordionGroup>
+
+## Core Technologies
+
+<CardGroup cols={3}>
+  <Card title="FastAPI" icon="bolt">
+    High-performance async Python web framework
   </Card>
-</Columns>
+  <Card title="Next.js 15" icon="react">
+    React framework with App Router
+  </Card>
+  <Card title="PostgreSQL" icon="database">
+    Primary database with JSONB support
+  </Card>
+  <Card title="OpenAI GPT-4" icon="brain">
+    AI language model for personas
+  </Card>
+  <Card title="Redis" icon="gauge-high">
+    Caching and session management
+  </Card>
+  <Card title="Docker" icon="docker">
+    Containerized development
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Key Features
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Upload PDF">
+    Upload business case studies (Harvard Business Review, custom cases)
+  </Step>
+  <Step title="AI Extraction">
+    AI automatically extracts scenarios, personas, and learning objectives
+  </Step>
+  <Step title="Create Simulation">
+    Review and customize generated content, create scenes
+  </Step>
+  <Step title="Launch">
+    Students engage in structured simulations with AI personas
+  </Step>
+  <Step title="Track Progress">
+    Monitor student progress, provide feedback, and grade performance
+  </Step>
+</Steps>
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Live API Docs" icon="server" href="http://localhost:8000/docs">
+    Interactive FastAPI documentation (when running locally)
+  </Card>
+  <Card title="Frontend" icon="window" href="http://localhost:3000">
+    Next.js application (when running locally)
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/yourusername/n-aible">
+    Source code and issue tracking
+  </Card>
+  <Card title="Community" icon="users" href="https://github.com/yourusername/n-aible/discussions">
+    Join discussions and get help
+  </Card>
+</CardGroup>
+
+## Architecture Highlights
+
+```mermaid
+graph LR
+    A[Frontend<br/>Next.js 15] --> B[API Gateway<br/>FastAPI]
+    B --> C[Modules<br/>Feature-based]
+    C --> D[Common<br/>Infrastructure]
+    C --> E[AI Agents<br/>Personas]
+    D --> F[(PostgreSQL)]
+    D --> G[(Redis)]
+    E --> H[OpenAI<br/>GPT-4]
+```
+
+<Info>
+  **Modular Design**: Our architecture follows a feature-based structure where each module owns its router, service, repository, and schemas.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Set Up Locally" icon="terminal" href="/quickstart">
+    Follow our 5-minute quick start guide
+  </Card>
+  <Card title="Explore Architecture" icon="diagram-project" href="/architecture/diagrams">
+    Visual diagrams with sequence flows
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/register">
+    Complete endpoint documentation
+  </Card>
+  <Card title="Development Guide" icon="hammer" href="/development/module-pattern">
+    Learn our development patterns
+  </Card>
+</CardGroup>
+
+<Check>
+  Ready to transform business education with AI-powered simulations? Let's get started!
+</Check>
