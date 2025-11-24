@@ -5,11 +5,7 @@
   "colors": {
     "primary": "#3B82F6",
     "light": "#60A5FA",
-    "dark": "#2563EB",
-    "background": {
-      "dark": "#0F172A",
-      "light": "#FFFFFF"
-    }
+    "dark": "#2563EB"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -208,8 +204,7 @@
   },
   "logo": {
     "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg",
-    "href": "/"
+    "dark": "/logo/dark.svg"
   },
   "navbar": {
     "links": [
@@ -219,9 +214,8 @@
       }
     ],
     "primary": {
-      "type": "button",
-      "label": "Get Started",
-      "href": "/quickstart"
+      "type": "link",
+      "label": "Get Started"
     }
   },
   "contextual": {
