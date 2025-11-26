@@ -1,0 +1,355 @@
+---
+title: 'Getting Started'
+description: 'Development workflow and setup guide for the n-aible backend'
+---
+
+This guide walks you through setting up the development environment and implementing new API endpoints using the modular architecture.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Python" icon="python">
+    Version 3.11 or higher
+    
+    [Download Python](https://python.org/)
+  </Card>
+  <Card title="uv Package Manager" icon="package">
+    Fast Python package installer
+    
+    Install: `pip install uv` or `brew install uv`
+  </Card>
+</CardGroup>
+
+## Initial Setup
+
+<Steps>
+  <Step title="Navigate to Backend Directory">
+    ```bash
+    cd backend
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    ```bash
+    uv sync
+    ```
+    
+    This command will:
+    - Create a virtual environment (`.venv`)
+    - Install all dependencies from `pyproject.toml`
+    - Install test dependencies (pytest, pytest-asyncio)
+    
+    <Info>
+    `uv sync` is much faster than `pip install` and automatically manages the virtual environment.
+    </Info>
+  </Step>
+  
+  <Step title="Start Development Server">
+    ```bash
+    uv run uvicorn app.main:app --reload
+    ```
+    
+    The API will be available at:
+    - **API**: `http://localhost:8000`
+    - **Interactive Docs**: `http://localhost:8000/docs`
+    - **Health Check**: `http://localhost:8000/health`
+  </Step>
+</Steps>
+
+## Development Workflow
+
+Follow this workflow when implementing new API endpoints:
+
+<Steps>
+  <Step title="Choose a Module">
+    Pick a module from `backend/modules/` to implement:
+    
+    <CardGroup cols={2}>
+      <Card title="Auth" icon="check">
+        ✅ Complete - Reference implementation
+      </Card>
+      <Card title="Simulation" icon="code">
+        Simulation execution
+      </Card>
+      <Card title="PDF Processing" icon="file">
+        PDF to scenario pipeline
+      </Card>
+      <Card title="Professor" icon="user">
+        Professor features
+      </Card>
+      <Card title="Student" icon="user">
+        Student features
+      </Card>
+      <Card title="Notifications" icon="bell">
+        Notification system
+      </Card>
+      <Card title="Publishing" icon="store">
+        Marketplace features
+      </Card>
+    </CardGroup>
+  </Step>
+  
+  <Step title="Understand Module Structure">
+    Each module follows a consistent structure:
+    
+    ```
+    modules/<feature>/
+    ├── router.py          # FastAPI endpoints (HTTP layer)
+    ├── service.py         # Business logic
+    ├── repository.py      # Data access (database queries)
+    ├── schemas/           # Pydantic models
+    │   ├── dto.py         # Request/response DTOs
+    │   └── models.py      # Domain models
+    └── models.py         # SQLAlchemy ORM models (if needed)
+    ```
+    
+    <Tip>
+    See `modules/auth/` for a complete reference implementation with all layers implemented.
+    </Tip>
+  </Step>
+  
+  <Step title="Implement in Order">
+    Follow this implementation order:
+    
+    1. **Define Schemas** (`schemas/dto.py`) - Request/response models
+    2. **Create ORM Models** (`models.py`) - Database models if needed
+    3. **Implement Repository** (`repository.py`) - Database queries
+    4. **Implement Service** (`service.py`) - Business logic
+    5. **Create Router** (`router.py`) - HTTP endpoints
+    6. **Register Router** (`app/api/__init__.py`) - Add to API
+    
+    <Warning>
+    Keep routers thin - push business logic into services, data access into repositories.
+    </Warning>
+  </Step>
+  
+  <Step title="Write Tests">
+    Create tests in `tests/modules/<feature>/test_router.py`:
+    
+    ```python
+    def test_endpoint_success(client):
+        """Test successful request."""
+        payload = {"email": "test@example.com"}
+        response = client.post("/api/feature/endpoint", json=payload)
+        
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["email"] == payload["email"]
+    ```
+    
+    <Info>
+    See the [Testing Guide](/development/testing) for comprehensive test examples.
+    </Info>
+  </Step>
+  
+  <Step title="Run Tests">
+    ```bash
+    # Run all tests
+    uv run pytest tests/ -v
+    
+    # Run tests for specific module
+    uv run pytest tests/modules/auth/ -v
+    
+    # Run with coverage
+    uv run pytest tests/ --cov=modules --cov-report=html
+    ```
+  </Step>
+  
+  <Step title="Verify Implementation">
+    1. **Test manually** using the interactive API docs at `http://localhost:8000/docs`
+    2. **Run automated tests** to ensure everything works
+    3. **Check coverage** to ensure all code paths are tested
+  </Step>
+</Steps>
+
+## Module Pattern Reference
+
+The auth module (`modules/auth/`) serves as a complete reference implementation:
+
+<AccordionGroup>
+  <Accordion title="Router Layer">
+    Thin HTTP layer that validates requests and calls services:
+    
+    ```python
+    @router.post("/register", response_model=UserRead)
+    def register_user(payload: UserCreate, service: AuthService = Depends(get_service)):
+        user = service.register(payload)
+        return user
+    ```
+  </Accordion>
+  
+  <Accordion title="Service Layer">
+    Business logic and orchestration:
+    
+    ```python
+    def register(self, payload: UserCreate):
+        if self.repository.get_by_email(payload.email):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        password_hash = hash_password(payload.password)
+        return self.repository.create(email=payload.email, password_hash=password_hash)
+    ```
+  </Accordion>
+  
+  <Accordion title="Repository Layer">
+    Data access and database queries:
+    
+    ```python
+    def get_by_email(self, email: str):
+        return self.db.query(models.User).filter(models.User.email == email).first()
+    
+    def create(self, **kwargs):
+        user = models.User(**kwargs)
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+    ```
+  </Accordion>
+  
+  <Accordion title="Schemas">
+    Pydantic models for validation:
+    
+    ```python
+    class UserCreate(BaseModel):
+        email: EmailStr
+        password: str = Field(min_length=8)
+        full_name: str | None = None
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing
+
+### Test Location
+
+Tests mirror the module structure:
+```
+tests/
+├── conftest.py              # Shared fixtures
+├── modules/
+│   └── auth/
+│       └── test_router.py  # Auth endpoint tests
+```
+
+### Running Tests
+
+<CodeGroup>
+```bash Run all tests
+cd backend
+uv run pytest tests/ -v
+```
+```bash Run specific module
+uv run pytest tests/modules/auth/ -v
+```
+```bash Run with coverage
+uv run pytest tests/ --cov=modules --cov-report=html
+```
+</CodeGroup>
+
+### Test Fixtures
+
+The test suite provides these fixtures (defined in `tests/conftest.py`):
+
+- **`client`** - FastAPI TestClient with database override
+- **`db_session`** - Fresh database session for each test
+
+<Info>
+Each test gets a clean database state, ensuring tests don't interfere with each other.
+</Info>
+
+### Writing Tests
+
+Follow the auth module test pattern:
+
+1. **Test success cases** - Happy path scenarios
+2. **Test validation** - Input validation errors  
+3. **Test error cases** - Business logic errors
+4. **Test edge cases** - Boundary conditions
+
+See the [Testing Guide](/development/testing) for detailed examples.
+
+## Project Structure
+
+```
+backend/
+├── app/                    # FastAPI application
+│   ├── main.py            # Application entrypoint
+│   ├── api/               # API router registration
+│   └── dependencies.py    # Dependency injection
+├── common/                # Shared infrastructure
+│   ├── config.py          # Settings (Pydantic)
+│   ├── db/                # Database (SQLAlchemy)
+│   ├── security/          # Auth utilities
+│   └── services/          # Shared services
+├── modules/               # Feature modules
+│   ├── auth/              # ✅ Complete example
+│   ├── simulation/        # Placeholder
+│   └── ...
+├── tests/                 # Test suite
+│   ├── conftest.py        # Test fixtures
+│   └── modules/           # Module tests
+└── pyproject.toml         # Dependencies & config
+```
+
+## Common Commands
+
+<CodeGroup>
+```bash Install dependencies
+cd backend
+uv sync
+```
+```bash Run server
+uv run uvicorn app.main:app --reload
+```
+```bash Run tests
+uv run pytest tests/ -v
+```
+```bash Run specific test
+uv run pytest tests/modules/auth/test_router.py -v
+```
+</CodeGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Routers Thin">
+    Validate requests, call services, return responses. No business logic.
+  </Card>
+  <Card title="Services Contain Logic">
+    Business rules, orchestration, and validation belong in services.
+  </Card>
+  <Card title="Repositories Access Data">
+    Database queries only. No business logic in repositories.
+  </Card>
+  <Card title="Write Tests">
+    Every endpoint should have comprehensive tests.
+  </Card>
+  <Card title="No Circular Dependencies">
+    Modules import from `common/`, not each other.
+  </Card>
+  <Card title="Use Type Hints">
+    Enable static type checking for better code quality.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Module Pattern" icon="sitemap" href="/development/module-pattern">
+    Learn the detailed module structure and patterns
+  </Card>
+  <Card title="Testing Guide" icon="flask" href="/development/testing">
+    Comprehensive testing guide with examples
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/register">
+    View implemented API endpoints
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture/overview">
+    Understand the system architecture
+  </Card>
+</CardGroup>
+
+<Check>
+Ready to start developing? Pick a module and follow the auth module as your reference!
+</Check>
+

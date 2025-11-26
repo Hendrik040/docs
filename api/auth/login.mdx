@@ -1,0 +1,148 @@
+---
+title: 'Login'
+description: 'Authenticate user and receive access token'
+---
+
+Authenticate a user with their email and password. Returns a JWT access token that can be used for subsequent authenticated requests.
+
+<Endpoint method="post" path="/api/auth/login" />
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+The email address of the user account.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+The password for the user account.
+</ParamField>
+
+## Request Example
+
+<RequestExample>
+```bash cURL
+curl -X POST 'http://localhost:8000/api/auth/login' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword123"
+  }'
+```
+</RequestExample>
+
+<CodeGroup>
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'securepassword123'
+  })
+});
+
+const tokenData = await response.json();
+const accessToken = tokenData.access_token;
+```
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:8000/api/auth/login',
+    json={
+        'email': 'user@example.com',
+        'password': 'securepassword123'
+    }
+)
+
+token_data = response.json()
+access_token = token_data['access_token']
+```
+</CodeGroup>
+
+## Response
+
+<ResponseField name="access_token" type="string" required>
+JWT access token for authenticated requests. Include this in the Authorization header as `Bearer {access_token}`.
+</ResponseField>
+
+<ResponseField name="token_type" type="string" required>
+Token type, always returns `"bearer"`.
+</ResponseField>
+
+## Success Response
+
+<ResponseExample>
+```json 200 OK
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzA1MzI1ODAwfQ.example",
+  "token_type": "bearer"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+<ResponseExample>
+```json 401 Unauthorized - Invalid Credentials
+{
+  "detail": "Incorrect email or password"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 422 Unprocessable Entity - Validation Error
+{
+  "detail": [
+    {
+      "loc": ["body", "email"],
+      "msg": "value is not a valid email address",
+      "type": "value_error.email"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+## Using the Access Token
+
+After receiving the access token, include it in subsequent API requests:
+
+<CodeGroup>
+```bash cURL
+curl -X GET 'http://localhost:8000/api/protected-endpoint' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+```
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/protected-endpoint', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  }
+});
+```
+```python Python
+headers = {
+    'Authorization': f'Bearer {access_token}'
+}
+response = requests.get('http://localhost:8000/api/protected-endpoint', headers=headers)
+```
+</CodeGroup>
+
+## Security Notes
+
+<Warning>
+- Never expose access tokens in client-side code or logs
+- Tokens expire after 30 minutes (configurable via `access_token_exp_minutes`)
+- Store tokens securely (e.g., HttpOnly cookies or secure storage)
+- Use HTTPS in production
+</Warning>
+
+<Info>
+- Passwords are verified using bcrypt
+- Invalid credentials return the same error message to prevent user enumeration
+- Tokens are signed with the secret key from configuration
+</Info>
+

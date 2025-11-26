@@ -1,0 +1,324 @@
+---
+title: 'Testing'
+description: 'Testing guide for the n-aible backend'
+---
+
+This guide covers testing strategies and patterns used in the n-aible backend, with a focus on the authentication module as a reference implementation.
+
+## Test Structure
+
+The test suite follows the same modular structure as the application:
+
+```
+tests/
+├── conftest.py              # Shared fixtures
+├── common/
+│   └── fixtures.py         # Common test utilities
+└── modules/
+    └── auth/
+        └── test_router.py  # Auth endpoint tests
+```
+
+## Running Tests
+
+<CodeGroup>
+```bash Run all tests
+cd backend
+uv run pytest tests/ -v
+```
+```bash Run specific module tests
+uv run pytest tests/modules/auth/ -v
+```
+```bash Run specific test file
+uv run pytest tests/modules/auth/test_router.py -v
+```
+```bash Run with coverage
+uv run pytest tests/ --cov=modules --cov-report=html
+```
+</CodeGroup>
+
+<Info>
+Make sure you've run `uv sync` first to install pytest and test dependencies.
+</Info>
+
+## Test Configuration
+
+The test configuration is defined in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+```
+
+## Test Fixtures
+
+### Database Session Fixture
+
+The `conftest.py` file provides a database session fixture that creates a fresh SQLite test database for each test:
+
+```python
+@pytest.fixture(scope="function")
+def db_session():
+    """Create a fresh database session for each test."""
+    Base.metadata.create_all(bind=engine)
+    db = TestSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+```
+
+### Test Client Fixture
+
+The test client fixture overrides the database dependency to use the test database:
+
+```python
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Create a test client with database override."""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+```
+
+<Info>
+Each test gets a clean database state, ensuring tests don't interfere with each other.
+</Info>
+
+## Authentication Module Tests
+
+The authentication module includes comprehensive tests covering all endpoints and edge cases.
+
+### Register Endpoint Tests
+
+<Tabs>
+<Tab title="Success Cases">
+
+```python
+def test_register_user_success(client):
+    """Test successful user registration."""
+    payload = {
+        "email": "test@example.com",
+        "password": "testpassword123",
+        "full_name": "Test User"
+    }
+    response = client.post("/api/auth/register", json=payload)
+    
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert data["email"] == payload["email"]
+    assert data["full_name"] == payload["full_name"]
+    assert data["is_active"] is True
+    assert "id" in data
+    assert "created_at" in data
+```
+
+</Tab>
+
+<Tab title="Validation Tests">
+
+```python
+def test_register_user_duplicate_email(client):
+    """Test registration with duplicate email fails."""
+    payload = {
+        "email": "duplicate@example.com",
+        "password": "testpassword123",
+        "full_name": "First User"
+    }
+    # First registration should succeed
+    response1 = client.post("/api/auth/register", json=payload)
+    assert response1.status_code == status.HTTP_201_CREATED
+    
+    # Second registration with same email should fail
+    response2 = client.post("/api/auth/register", json=payload)
+    assert response2.status_code == status.HTTP_400_BAD_REQUEST
+    assert "already registered" in response2.json()["detail"].lower()
+
+def test_register_user_short_password(client):
+    """Test registration with password too short fails."""
+    payload = {
+        "email": "shortpass@example.com",
+        "password": "short",
+        "full_name": "Test User"
+    }
+    response = client.post("/api/auth/register", json=payload)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+```
+
+</Tab>
+</Tabs>
+
+### Login Endpoint Tests
+
+<Tabs>
+<Tab title="Success Cases">
+
+```python
+def test_login_success(client):
+    """Test successful login returns access token."""
+    # First register a user
+    register_payload = {
+        "email": "login@example.com",
+        "password": "testpassword123",
+        "full_name": "Login User"
+    }
+    client.post("/api/auth/register", json=register_payload)
+    
+    # Then login
+    login_payload = {
+        "email": "login@example.com",
+        "password": "testpassword123"
+    }
+    response = client.post("/api/auth/login", json=login_payload)
+    
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    assert len(data["access_token"]) > 0
+```
+
+</Tab>
+
+<Tab title="Error Cases">
+
+```python
+def test_login_wrong_password(client):
+    """Test login with wrong password fails."""
+    # First register a user
+    register_payload = {
+        "email": "wrongpass@example.com",
+        "password": "correctpassword123",
+        "full_name": "Test User"
+    }
+    client.post("/api/auth/register", json=register_payload)
+    
+    # Try to login with wrong password
+    login_payload = {
+        "email": "wrongpass@example.com",
+        "password": "wrongpassword123"
+    }
+    response = client.post("/api/auth/login", json=login_payload)
+    
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "incorrect" in response.json()["detail"].lower()
+
+def test_login_nonexistent_user(client):
+    """Test login with non-existent email fails."""
+    login_payload = {
+        "email": "nonexistent@example.com",
+        "password": "somepassword123"
+    }
+    response = client.post("/api/auth/login", json=login_payload)
+    
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "incorrect" in response.json()["detail"].lower()
+```
+
+</Tab>
+</Tabs>
+
+## Complete Test Coverage
+
+The authentication module includes 9 comprehensive tests:
+
+<CardGroup cols={3}>
+  <Card title="Register Success">
+    Tests successful user registration with all fields
+  </Card>
+  <Card title="Duplicate Email">
+    Ensures duplicate emails are rejected
+  </Card>
+  <Card title="Password Validation">
+    Validates minimum password length
+  </Card>
+  <Card title="Email Validation">
+    Validates email format
+  </Card>
+  <Card title="Optional Fields">
+    Tests registration without optional fields
+  </Card>
+  <Card title="Login Success">
+    Tests successful authentication
+  </Card>
+  <Card title="Wrong Password">
+    Tests authentication failure with wrong password
+  </Card>
+  <Card title="Nonexistent User">
+    Tests authentication failure with non-existent user
+  </Card>
+  <Card title="Invalid Email Format">
+    Tests login validation errors
+  </Card>
+</CardGroup>
+
+## Test Best Practices
+
+<Steps>
+  <Step title="Isolate Tests">
+    Each test should be independent and not rely on other tests. Use fixtures to set up clean state.
+  </Step>
+  <Step title="Test Edge Cases">
+    Don't just test the happy path. Include validation errors, duplicate data, and error conditions.
+  </Step>
+  <Step title="Use Descriptive Names">
+    Test function names should clearly describe what they're testing (e.g., `test_register_user_duplicate_email`).
+  </Step>
+  <Step title="Assert Meaningfully">
+    Check both status codes and response data to ensure the endpoint behaves correctly.
+  </Step>
+  <Step title="Clean Up">
+    Use fixtures with proper teardown to ensure tests don't leave behind test data.
+  </Step>
+</Steps>
+
+## Running Tests in CI/CD
+
+<CodeGroup>
+```yaml GitHub Actions
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install uv
+        run: pip install uv
+      - name: Install dependencies
+        run: cd backend && uv sync
+      - name: Run tests
+        run: cd backend && uv run pytest tests/ -v
+```
+```bash Local CI Check
+cd backend
+uv run pytest tests/ -v --tb=short
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Add More Tests" icon="plus" href="/development/module-pattern">
+    Follow the same pattern to add tests for other modules
+  </Card>
+  <Card title="Integration Tests" icon="link" href="/development/getting-started">
+    Learn about integration testing strategies
+  </Card>
+</CardGroup>
+
+<Check>
+All tests passing? You're ready to add more features!
+</Check>
+

@@ -214,8 +214,8 @@
       }
     ],
     "primary": {
-      "type": "link",
-      "label": "Get Started"
+      "type": "github",
+      "href": "https://github.com/yourusername/n-aible"
     }
   },
   "contextual": {

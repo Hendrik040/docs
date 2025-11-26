@@ -1,0 +1,146 @@
+---
+title: 'Register User'
+description: 'Create a new user account with email and password'
+---
+
+Register a new user account in the system. The email must be unique and the password must be at least 8 characters long.
+
+<Endpoint method="post" path="/api/auth/register" />
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+Valid email address. Must be unique within the system.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+User password. Must be at least 8 characters long.
+</ParamField>
+
+<ParamField body="full_name" type="string">
+Optional full name for the user account.
+</ParamField>
+
+## Request Example
+
+<RequestExample>
+```bash cURL
+curl -X POST 'http://localhost:8000/api/auth/register' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword123",
+    "full_name": "John Doe"
+  }'
+```
+</RequestExample>
+
+<CodeGroup>
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'securepassword123',
+    full_name: 'John Doe'
+  })
+});
+
+const user = await response.json();
+```
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:8000/api/auth/register',
+    json={
+        'email': 'user@example.com',
+        'password': 'securepassword123',
+        'full_name': 'John Doe'
+    }
+)
+
+user = response.json()
+```
+</CodeGroup>
+
+## Response
+
+<ResponseField name="id" type="integer" required>
+Unique identifier for the newly created user.
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+The email address used for registration.
+</ResponseField>
+
+<ResponseField name="full_name" type="string | null">
+The full name provided during registration, or null if not provided.
+</ResponseField>
+
+<ResponseField name="is_active" type="boolean" required>
+Whether the user account is active. Defaults to `true` for new registrations.
+</ResponseField>
+
+<ResponseField name="created_at" type="string" required>
+ISO 8601 formatted timestamp of when the user account was created.
+</ResponseField>
+
+## Success Response
+
+<ResponseExample>
+```json 201 Created
+{
+  "id": 1,
+  "email": "user@example.com",
+  "full_name": "John Doe",
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00.000000"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+<ResponseExample>
+```json 400 Bad Request - Duplicate Email
+{
+  "detail": "Email already registered"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 422 Unprocessable Entity - Validation Error
+{
+  "detail": [
+    {
+      "loc": ["body", "password"],
+      "msg": "ensure this value has at least 8 characters",
+      "type": "value_error.any_str.min_length"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+## Validation Rules
+
+<Warning>
+- Email must be a valid email format
+- Email must be unique (not already registered)
+- Password must be at least 8 characters long
+- Full name is optional
+</Warning>
+
+## Notes
+
+<Info>
+- Passwords are automatically hashed using bcrypt before storage
+- User accounts are created as active by default
+- The email field is indexed for fast lookups
+</Info>
+
