@@ -102,8 +102,9 @@
             "pages": [
               "api/auth/register",
               "api/auth/login",
-              "api/auth/oauth",
-              "api/auth/logout"
+              "api/auth/logout",
+              "api/auth/me",
+              "api/auth/oauth"
             ]
           },
           {

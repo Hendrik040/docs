@@ -1,0 +1,77 @@
+---
+title: 'Logout'
+description: 'Logout user by clearing authentication cookie'
+---
+
+Logout the current authenticated user by clearing the authentication cookie.
+
+<Endpoint method="post" path="/api/auth/logout" />
+
+## Authentication
+
+This endpoint requires authentication. The authentication cookie must be present in the request.
+
+## Request Example
+
+<RequestExample>
+```bash cURL
+curl -X POST 'http://localhost:8000/api/auth/logout' \
+  -b cookies.txt
+```
+</RequestExample>
+
+<CodeGroup>
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/auth/logout', {
+  method: 'POST',
+  credentials: 'include'  // Required for cookies
+});
+
+const data = await response.json();
+```
+```python Python
+import requests
+
+session = requests.Session()
+# ... login first to get cookie ...
+response = session.post('http://localhost:8000/api/auth/logout')
+data = response.json()
+```
+</CodeGroup>
+
+## Response
+
+<ResponseField name="message" type="string" required>
+Success message confirming logout.
+</ResponseField>
+
+## Success Response
+
+<ResponseExample>
+```json 200 OK
+{
+  "message": "Logged out successfully"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+<ResponseExample>
+```json 401 Unauthorized - Not Authenticated
+{
+  "detail": "Not authenticated"
+}
+```
+</ResponseExample>
+
+<Info>
+After logout, the authentication cookie is cleared. Subsequent requests will require re-authentication.
+</Info>
+
+## Notes
+
+- The authentication cookie is deleted from the browser
+- User must login again to access protected endpoints
+- No token cleanup needed on client side - handled automatically
+

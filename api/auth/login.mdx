@@ -1,9 +1,9 @@
 ---
 title: 'Login'
-description: 'Authenticate user and receive access token'
+description: 'Authenticate user and receive authentication cookie'
 ---
 
-Authenticate a user with their email and password. Returns a JWT access token that can be used for subsequent authenticated requests.
+Authenticate a user with their email and password. Sets an HttpOnly authentication cookie that is automatically included in subsequent requests. No manual token management required.
 
 <Endpoint method="post" path="/api/auth/login" />
 
@@ -23,6 +23,7 @@ The password for the user account.
 ```bash cURL
 curl -X POST 'http://localhost:8000/api/auth/login' \
   -H 'Content-Type: application/json' \
+  -c cookies.txt \
   -d '{
     "email": "user@example.com",
     "password": "securepassword123"
@@ -37,19 +38,22 @@ const response = await fetch('http://localhost:8000/api/auth/login', {
   headers: {
     'Content-Type': 'application/json',
   },
+  credentials: 'include',  // Required for cookies
   body: JSON.stringify({
     email: 'user@example.com',
     password: 'securepassword123'
   })
 });
 
-const tokenData = await response.json();
-const accessToken = tokenData.access_token;
+const data = await response.json();
+// Cookie is automatically set by browser
+// No need to manually store tokens
 ```
 ```python Python
 import requests
 
-response = requests.post(
+session = requests.Session()
+response = session.post(
     'http://localhost:8000/api/auth/login',
     json={
         'email': 'user@example.com',
@@ -57,19 +61,24 @@ response = requests.post(
     }
 )
 
-token_data = response.json()
-access_token = token_data['access_token']
+data = response.json()
+# Cookie is stored in session.cookies automatically
+# Use session for subsequent requests
 ```
 </CodeGroup>
 
 ## Response
 
 <ResponseField name="access_token" type="string" required>
-JWT access token for authenticated requests. Include this in the Authorization header as `Bearer {access_token}`.
+Always returns empty string `""`. The actual token is stored in an HttpOnly cookie, not in the response body.
 </ResponseField>
 
 <ResponseField name="token_type" type="string" required>
-Token type, always returns `"bearer"`.
+Token type, always returns `"cookie"` to indicate cookie-based authentication.
+</ResponseField>
+
+<ResponseField name="user" type="object" required>
+Complete user object with all user information.
 </ResponseField>
 
 ## Success Response
@@ -77,11 +86,29 @@ Token type, always returns `"bearer"`.
 <ResponseExample>
 ```json 200 OK
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzA1MzI1ODAwfQ.example",
-  "token_type": "bearer"
+  "access_token": "",
+  "token_type": "cookie",
+  "user": {
+    "id": 1,
+    "user_id": "STUD-A1B2C3D4E5",
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "username": "johndoe",
+    "bio": null,
+    "avatar_url": null,
+    "role": "student",
+    "is_active": true,
+    "is_verified": false,
+    "created_at": "2024-01-15T10:30:00.000000+00:00",
+    "updated_at": "2024-01-15T10:30:00.000000+00:00"
+  }
 }
 ```
 </ResponseExample>
+
+<Info>
+An HttpOnly authentication cookie (`access_token`) is automatically set in the response. This cookie is used for subsequent authenticated requests - no manual token management needed.
+</Info>
 
 ## Error Responses
 
@@ -107,36 +134,38 @@ Token type, always returns `"bearer"`.
 ```
 </ResponseExample>
 
-## Using the Access Token
+## Using Authentication
 
-After receiving the access token, include it in subsequent API requests:
+After login, the authentication cookie is automatically included in subsequent requests. No manual token management needed:
 
 <CodeGroup>
 ```bash cURL
-curl -X GET 'http://localhost:8000/api/protected-endpoint' \
-  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+# Cookie is automatically sent with requests
+curl -X GET 'http://localhost:8000/api/auth/me' \
+  -b cookies.txt
 ```
 ```javascript JavaScript
-const response = await fetch('http://localhost:8000/api/protected-endpoint', {
-  headers: {
-    'Authorization': `Bearer ${accessToken}`
-  }
+// Cookie is automatically sent with credentials: 'include'
+const response = await fetch('http://localhost:8000/api/auth/me', {
+  credentials: 'include'  // Required for cookies
 });
+
+const user = await response.json();
 ```
 ```python Python
-headers = {
-    'Authorization': f'Bearer {access_token}'
-}
-response = requests.get('http://localhost:8000/api/protected-endpoint', headers=headers)
+# Use the same session - cookies are automatically included
+response = session.get('http://localhost:8000/api/auth/me')
+user = response.json()
 ```
 </CodeGroup>
 
 ## Security Notes
 
 <Warning>
-- Never expose access tokens in client-side code or logs
+- Authentication cookies are HttpOnly (not accessible via JavaScript, preventing XSS)
+- Cookies are Secure in production (HTTPS only)
+- Cookies have SameSite=Lax protection (CSRF protection)
 - Tokens expire after 30 minutes (configurable via `access_token_exp_minutes`)
-- Store tokens securely (e.g., HttpOnly cookies or secure storage)
 - Use HTTPS in production
 </Warning>
 
@@ -144,5 +173,7 @@ response = requests.get('http://localhost:8000/api/protected-endpoint', headers=
 - Passwords are verified using bcrypt
 - Invalid credentials return the same error message to prevent user enumeration
 - Tokens are signed with the secret key from configuration
+- Cookies are automatically managed by the browser - no client-side token storage needed
+- More secure than token-in-response-body approach (XSS protection)
 </Info>
 

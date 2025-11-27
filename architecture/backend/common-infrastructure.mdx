@@ -1,0 +1,274 @@
+---
+title: 'Common Infrastructure'
+description: 'Shared infrastructure and utilities'
+---
+
+The `common/` directory contains code used across multiple features. This is the "foundation" that everything else builds on.
+
+## Structure
+
+```
+common/
+├── config.py          # Pydantic settings
+├── db/                # Database layer
+│   ├── base.py        # SQLAlchemy Base
+│   ├── core.py        # Engine, sessions
+│   └── mixins.py      # Reusable model columns
+├── security/          # Auth utilities
+│   ├── passwords.py   # Password hashing
+│   └── tokens.py      # JWT tokens
+├── services/          # Cross-cutting services
+│   ├── email_service.py
+│   ├── cache_service.py
+│   └── ai_gateway.py
+└── utils/             # Helper utilities
+    ├── auth.py
+    ├── id_generator.py
+    └── security.py
+```
+
+## Configuration (`common/config.py`)
+
+Centralized configuration management using Pydantic Settings:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        extra="ignore"
+    )
+    
+    database_url: str = f"sqlite:///{BASE_DIR / 'app.db'}"
+    secret_key: str = "super-secret-key"
+    access_token_exp_minutes: int = 30
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+```
+
+**Features:**
+- Environment variable loading
+- Type validation
+- Default values
+- Cached settings instance
+
+## Database Layer (`common/db/`)
+
+### `common/db/base.py`
+
+SQLAlchemy Base class for all models:
+
+```python
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+    pass
+```
+
+### `common/db/core.py`
+
+Database engine and session management:
+
+```python
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from common.config import get_settings
+from common.db.base import Base
+
+settings = get_settings()
+engine = create_engine(settings.database_url, future=True, echo=False)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+def get_db() -> Iterator:
+    """FastAPI dependency that yields a database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+```
+
+**Features:**
+- Connection pooling
+- Session factory
+- FastAPI dependency for database sessions
+- Automatic cleanup
+
+### `common/db/mixins.py`
+
+Reusable model columns:
+
+```python
+from sqlalchemy import Column, DateTime
+from datetime import datetime
+
+class TimestampMixin:
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+```
+
+## Security (`common/security/`)
+
+### `common/security/passwords.py`
+
+Password hashing and verification using bcrypt:
+
+```python
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+```
+
+### `common/security/tokens.py`
+
+JWT token generation and validation:
+
+```python
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+
+def create_access_token(subject: str) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_exp_minutes)
+    to_encode = {"exp": expire, "sub": subject}
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+
+def decode_token(token: str) -> dict:
+    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+```
+
+## Services (`common/services/`)
+
+### `common/services/email_service.py`
+
+Email sending functionality (placeholder):
+
+- SMTP/SendGrid integration
+- Template rendering
+- Email queue management
+
+### `common/services/cache_service.py`
+
+Unified caching interface (placeholder):
+
+- Redis caching (primary)
+- In-memory fallback
+- Cache key management
+- TTL handling
+
+### `common/services/ai_gateway.py`
+
+Unified AI service interface (placeholder):
+
+- OpenAI client wrapper
+- LangChain integration
+- Rate limiting, retry logic
+- Provider abstraction
+
+## Utilities (`common/utils/`)
+
+### `common/utils/auth.py`
+
+Authentication helpers:
+
+- JWT token utilities
+- User validation
+- Permission checks
+
+### `common/utils/id_generator.py`
+
+ID generation utilities:
+
+- Unique ID generation
+- UUID helpers
+
+### `common/utils/security.py`
+
+Security-related utilities:
+
+- Rate limiting
+- Input validation
+- XSS/CSRF protection helpers
+
+## Usage Examples
+
+### Using Configuration
+
+```python
+from common.config import get_settings
+
+settings = get_settings()
+database_url = settings.database_url
+```
+
+### Using Database
+
+```python
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from common.db.core import get_db
+
+def my_endpoint(db: Session = Depends(get_db)):
+    # Use db session
+    users = db.query(User).all()
+    return users
+```
+
+### Using Security
+
+```python
+from common.security.passwords import hash_password, verify_password
+from common.security.tokens import create_access_token
+
+# Hash password
+password_hash = hash_password("user_password")
+
+# Verify password
+is_valid = verify_password("user_password", password_hash)
+
+# Create token
+token = create_access_token(subject=str(user_id))
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="No Module Dependencies">
+    Common code should never import from modules
+  </Card>
+  <Card title="Reusable Components">
+    Only put code here if it's used by multiple modules
+  </Card>
+  <Card title="Type Safety">
+    Use type hints for all functions
+  </Card>
+  <Card title="Documentation">
+    Document all public functions and classes
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Layer" icon="database" href="/architecture/backend/database">
+    Learn about database structure
+  </Card>
+  <Card title="Module Pattern" icon="puzzle-piece" href="/architecture/backend/modules">
+    Understand how modules use common code
+  </Card>
+  <Card title="Development Guide" icon="book" href="/development/getting-started">
+    Start using common infrastructure
+  </Card>
+</CardGroup>
+

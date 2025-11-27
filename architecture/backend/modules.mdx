@@ -1,0 +1,268 @@
+---
+title: 'Modules'
+description: 'Feature modules and their responsibilities'
+---
+
+Each module represents a business capability. All code related to that feature lives together, making it easy to understand and modify.
+
+## Module Pattern
+
+Every module follows this consistent structure:
+
+```
+modules/<feature>/
+├── router.py          # FastAPI endpoints (HTTP layer)
+├── service.py         # Business logic
+├── repository.py      # Data access
+├── schemas/           # Pydantic models
+│   ├── dto.py         # Request/response DTOs
+│   └── models.py      # Domain models
+├── models.py          # SQLAlchemy ORM models (if needed)
+└── tasks.py           # Background tasks (optional)
+```
+
+## Available Modules
+
+<CardGroup cols={2}>
+  <Card title="Auth" icon="check">
+    ✅ Complete - Authentication & authorization
+  </Card>
+  <Card title="Simulation" icon="code">
+    Simulation execution & AI personas
+  </Card>
+  <Card title="PDF Processing" icon="file">
+    PDF to scenario pipeline
+  </Card>
+  <Card title="Professor" icon="user">
+    Professor features & cohort management
+  </Card>
+  <Card title="Student" icon="user">
+    Student features & progress tracking
+  </Card>
+  <Card title="Notifications" icon="bell">
+    Notification system
+  </Card>
+  <Card title="Publishing" icon="store">
+    Marketplace & publishing
+  </Card>
+</CardGroup>
+
+## Auth Module (`modules/auth/`)
+
+**Status**: ✅ Fully implemented with comprehensive tests
+
+**Purpose**: Handles user authentication and authorization.
+
+### Endpoints
+
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+
+### Structure
+
+```python
+# router.py - HTTP endpoints
+@router.post("/register", response_model=UserRead)
+def register_user(payload: UserCreate, service: AuthService = Depends(get_service)):
+    user = service.register(payload)
+    return user
+
+# service.py - Business logic
+def register(self, payload: UserCreate):
+    if self.repository.get_by_email(payload.email):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    password_hash = hash_password(payload.password)
+    return self.repository.create(email=payload.email, password_hash=password_hash)
+
+# repository.py - Data access
+def get_by_email(self, email: str):
+    return self.db.query(models.User).filter(models.User.email == email).first()
+```
+
+<Info>
+The auth module serves as a complete reference implementation. Use it as a template when implementing other modules.
+</Info>
+
+## Simulation Module (`modules/simulation/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Handles the core simulation experience (chat with AI personas, goal validation, progress tracking).
+
+### Planned Endpoints
+
+- `POST /api/simulation/start` - Start a simulation
+- `POST /api/simulation/linear-chat` - Send chat message
+- `POST /api/simulation/validate-goal` - Validate learning goal
+- `GET /api/simulation/progress` - Get user progress
+- `GET /api/simulation/analytics` - Get simulation analytics
+
+### Structure
+
+```
+modules/simulation/
+├── router.py             # Simulation endpoints
+├── service.py            # Simulation business logic
+├── repository.py         # Data access (scenarios, progress)
+├── schemas/              # Simulation models
+├── tasks.py              # Background tasks
+└── agents/               # AI agents (future)
+    ├── persona_agent.py
+    ├── grading_agent.py
+    └── summarization_agent.py
+```
+
+## PDF Processing Module (`modules/pdf_processing/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Handles PDF upload, parsing, and scenario generation from business case studies.
+
+### Planned Endpoints
+
+- `POST /api/parse-pdf/upload` - Upload PDF
+- `GET /api/parse-pdf/progress/{session_id}` - Get processing progress
+- `WebSocket /api/parse-pdf/ws/{session_id}` - Real-time progress updates
+
+### Structure
+
+```
+modules/pdf_processing/
+├── router.py                  # PDF endpoints
+├── pipeline.py                # Main orchestrator
+├── parser_service.py          # PDF text extraction (LlamaParse)
+├── ai_extraction_service.py   # AI analysis (GPT-4)
+├── repository.py              # Data access
+└── schemas/                   # PDF processing models
+```
+
+## Professor Module (`modules/professor/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Professor-specific functionality (cohorts, grading, invitations).
+
+### Planned Endpoints
+
+- `GET /api/professor/cohorts` - List cohorts
+- `POST /api/professor/cohorts` - Create cohort
+- `POST /api/professor/invitations` - Send invitations
+- `GET /api/professor/grading` - Get grading materials
+
+## Student Module (`modules/student/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Student-specific functionality (simulation instances, progress).
+
+### Planned Endpoints
+
+- `GET /api/student/simulation-instances` - List simulations
+- `POST /api/student/simulation-instances` - Start simulation
+- `GET /api/student/cohorts` - List enrolled cohorts
+
+## Notifications Module (`modules/notifications/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Handles all notifications (email, in-app).
+
+### Planned Endpoints
+
+- `GET /api/notifications` - List notifications
+- `POST /api/notifications/mark-read` - Mark as read
+
+## Publishing Module (`modules/publishing/`)
+
+**Status**: Placeholder structure ready for implementation
+
+**Purpose**: Handles scenario publishing and marketplace functionality.
+
+### Planned Endpoints
+
+- `POST /api/publishing/publish` - Publish scenario
+- `GET /api/publishing/marketplace` - Browse marketplace
+- `POST /api/publishing/rate` - Rate scenario
+
+## Module Implementation Order
+
+When implementing a new module, follow this order:
+
+<Steps>
+  <Step title="Define Schemas">
+    Create request/response models in `schemas/dto.py`
+  </Step>
+  
+  <Step title="Create ORM Models">
+    Define database models in `models.py` if needed
+  </Step>
+  
+  <Step title="Implement Repository">
+    Create data access methods in `repository.py`
+  </Step>
+  
+  <Step title="Implement Service">
+    Add business logic in `service.py`
+  </Step>
+  
+  <Step title="Create Router">
+    Define HTTP endpoints in `router.py`
+  </Step>
+  
+  <Step title="Register Router">
+    Add router to `app/api/__init__.py`
+  </Step>
+  
+  <Step title="Write Tests">
+    Create tests in `tests/modules/<feature>/test_router.py`
+  </Step>
+</Steps>
+
+## Router Size Management
+
+If a module has many endpoints, split the router:
+
+```
+modules/simulation/
+├── router.py              # Main router (~20 lines)
+│   from .routers import chat_router, progress_router
+│   router = APIRouter()
+│   router.include_router(chat_router)
+│   router.include_router(progress_router)
+├── routers/
+│   ├── chat.py           # Chat endpoints (~100 lines)
+│   └── progress.py       # Progress/analytics (~80 lines)
+└── ...
+```
+
+## Module Dependencies
+
+<Warning>
+Modules should NOT import from each other. All shared code lives in `common/`.
+</Warning>
+
+**Allowed:**
+- Modules import from `common/`
+- Modules import from `app/` (dependencies only)
+
+**Not Allowed:**
+- Modules importing from other modules
+- Circular dependencies
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Auth Module Reference" icon="check" href="/api/auth/register">
+    See complete auth implementation
+  </Card>
+  <Card title="Development Guide" icon="book" href="/development/getting-started">
+    Learn how to implement modules
+  </Card>
+  <Card title="Common Infrastructure" icon="layer-group" href="/architecture/backend/common-infrastructure">
+    Understand shared components
+  </Card>
+  <Card title="Testing Guide" icon="flask" href="/development/testing">
+    Learn testing patterns
+  </Card>
+</CardGroup>
+

@@ -32,8 +32,14 @@ uv run pytest tests/modules/auth/ -v
 ```bash Run specific test file
 uv run pytest tests/modules/auth/test_router.py -v
 ```
+```bash Run specific test function
+uv run pytest tests/modules/auth/test_router.py::test_register_user_success -v
+```
 ```bash Run with coverage
 uv run pytest tests/ --cov=modules --cov-report=html
+```
+```bash Run with coverage report
+uv run pytest tests/ --cov=modules --cov-report=term-missing
 ```
 </CodeGroup>
 
@@ -72,12 +78,12 @@ def db_session():
 
 ### Test Client Fixture
 
-The test client fixture overrides the database dependency to use the test database:
+The test client fixture overrides the database dependency to use the test database and supports cookies:
 
 ```python
 @pytest.fixture(scope="function")
 def client(db_session):
-    """Create a test client with database override."""
+    """Create a test client with database override and cookie support."""
     def override_get_db():
         try:
             yield db_session
@@ -85,12 +91,13 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
+    # TestClient with follow_redirects=False to preserve cookies
+    yield TestClient(app, follow_redirects=False)
     app.dependency_overrides.clear()
 ```
 
 <Info>
-Each test gets a clean database state, ensuring tests don't interfere with each other.
+Each test gets a clean database state, ensuring tests don't interfere with each other. The test client automatically handles HttpOnly cookies for authentication testing.
 </Info>
 
 ## Authentication Module Tests
@@ -117,8 +124,15 @@ def test_register_user_success(client):
     assert data["email"] == payload["email"]
     assert data["full_name"] == payload["full_name"]
     assert data["is_active"] is True
+    assert data["role"] == "student"  # Default role
+    assert data["is_verified"] is False
     assert "id" in data
+    assert "user_id" in data  # Role-based ID
+    assert "username" in data
     assert "created_at" in data
+    assert "updated_at" in data
+    # Check that authentication cookie is set
+    assert "access_token" in response.cookies
 ```
 
 </Tab>
@@ -142,6 +156,27 @@ def test_register_user_duplicate_email(client):
     assert response2.status_code == status.HTTP_400_BAD_REQUEST
     assert "already registered" in response2.json()["detail"].lower()
 
+def test_register_user_duplicate_username(client):
+    """Test registration with duplicate username fails."""
+    payload1 = {
+        "email": "user1@example.com",
+        "password": "testpassword123",
+        "username": "duplicate_username"
+    }
+    payload2 = {
+        "email": "user2@example.com",
+        "password": "testpassword123",
+        "username": "duplicate_username"
+    }
+    # First registration should succeed
+    response1 = client.post("/api/auth/register", json=payload1)
+    assert response1.status_code == status.HTTP_201_CREATED
+    
+    # Second registration with same username should fail
+    response2 = client.post("/api/auth/register", json=payload2)
+    assert response2.status_code == status.HTTP_400_BAD_REQUEST
+    assert "username" in response2.json()["detail"].lower()
+
 def test_register_user_short_password(client):
     """Test registration with password too short fails."""
     payload = {
@@ -163,7 +198,7 @@ def test_register_user_short_password(client):
 
 ```python
 def test_login_success(client):
-    """Test successful login returns access token."""
+    """Test successful login sets cookie and returns user data."""
     # First register a user
     register_payload = {
         "email": "login@example.com",
@@ -181,9 +216,13 @@ def test_login_success(client):
     
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
-    assert len(data["access_token"]) > 0
+    # Cookie-based auth: access_token is empty, token_type is "cookie"
+    assert data["access_token"] == ""
+    assert data["token_type"] == "cookie"
+    assert "user" in data
+    assert data["user"]["email"] == login_payload["email"]
+    # Check that authentication cookie is set
+    assert "access_token" in response.cookies
 ```
 
 </Tab>
@@ -226,16 +265,80 @@ def test_login_nonexistent_user(client):
 </Tab>
 </Tabs>
 
+### Logout Endpoint Tests
+
+```python
+def test_logout_success(client):
+    """Test logout clears authentication cookie."""
+    # First register and login
+    register_payload = {
+        "email": "logout@example.com",
+        "password": "testpassword123"
+    }
+    client.post("/api/auth/register", json=register_payload)
+    
+    login_payload = {
+        "email": "logout@example.com",
+        "password": "testpassword123"
+    }
+    login_response = client.post("/api/auth/login", json=login_payload)
+    assert "access_token" in login_response.cookies
+    
+    # Logout
+    logout_response = client.post("/api/auth/logout")
+    assert logout_response.status_code == status.HTTP_200_OK
+    assert "message" in logout_response.json()
+```
+
+### Get Current User Tests
+
+```python
+def test_get_current_user_me(client):
+    """Test /me endpoint returns current authenticated user."""
+    # Register and login
+    register_payload = {
+        "email": "me@example.com",
+        "password": "testpassword123",
+        "full_name": "Me User"
+    }
+    client.post("/api/auth/register", json=register_payload)
+    
+    login_payload = {
+        "email": "me@example.com",
+        "password": "testpassword123"
+    }
+    client.post("/api/auth/login", json=login_payload)
+    
+    # Get current user
+    response = client.get("/api/auth/me")
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["email"] == "me@example.com"
+    assert data["full_name"] == "Me User"
+    assert "id" in data
+    assert "user_id" in data
+    assert "role" in data
+
+def test_get_current_user_me_unauthenticated(client):
+    """Test /me endpoint requires authentication."""
+    response = client.get("/api/auth/me")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "not authenticated" in response.json()["detail"].lower()
+```
+
 ## Complete Test Coverage
 
-The authentication module includes 9 comprehensive tests:
+The authentication module includes 16 comprehensive tests:
 
 <CardGroup cols={3}>
   <Card title="Register Success">
-    Tests successful user registration with all fields
+    Tests successful user registration with all fields and cookie setting
   </Card>
   <Card title="Duplicate Email">
     Ensures duplicate emails are rejected
+  </Card>
+  <Card title="Duplicate Username">
+    Ensures duplicate usernames are rejected
   </Card>
   <Card title="Password Validation">
     Validates minimum password length
@@ -246,8 +349,14 @@ The authentication module includes 9 comprehensive tests:
   <Card title="Optional Fields">
     Tests registration without optional fields
   </Card>
+  <Card title="Role Assignment">
+    Tests registration with specific roles (student/professor/admin)
+  </Card>
+  <Card title="Custom Username">
+    Tests registration with custom username
+  </Card>
   <Card title="Login Success">
-    Tests successful authentication
+    Tests successful authentication with cookie-based auth
   </Card>
   <Card title="Wrong Password">
     Tests authentication failure with wrong password
@@ -258,7 +367,43 @@ The authentication module includes 9 comprehensive tests:
   <Card title="Invalid Email Format">
     Tests login validation errors
   </Card>
+  <Card title="Logout Success">
+    Tests logout clears authentication cookie
+  </Card>
+  <Card title="Get Current User">
+    Tests /me endpoint returns authenticated user
+  </Card>
+  <Card title="Unauthenticated Access">
+    Tests /me endpoint requires authentication
+  </Card>
+  <Card title="Inactive User">
+    Tests login with inactive user fails
+  </Card>
 </CardGroup>
+
+## Testing Cookie-Based Authentication
+
+The test client automatically handles HttpOnly cookies. When you make a request that sets a cookie (like login or register), the cookie is automatically included in subsequent requests:
+
+```python
+def test_authenticated_request(client):
+    """Test that cookies are automatically included in requests."""
+    # Register (sets cookie)
+    register_response = client.post("/api/auth/register", json={
+        "email": "test@example.com",
+        "password": "testpassword123"
+    })
+    assert "access_token" in register_response.cookies
+    
+    # Subsequent request automatically includes cookie
+    me_response = client.get("/api/auth/me")
+    assert me_response.status_code == status.HTTP_200_OK
+    # No need to manually set Authorization header
+```
+
+<Info>
+The TestClient automatically manages cookies between requests, just like a real browser would.
+</Info>
 
 ## Test Best Practices
 
@@ -275,10 +420,47 @@ The authentication module includes 9 comprehensive tests:
   <Step title="Assert Meaningfully">
     Check both status codes and response data to ensure the endpoint behaves correctly.
   </Step>
+  <Step title="Test Cookies">
+    For cookie-based auth, verify cookies are set and included in subsequent requests.
+  </Step>
   <Step title="Clean Up">
     Use fixtures with proper teardown to ensure tests don't leave behind test data.
   </Step>
 </Steps>
+
+## Testing Cookie-Based Authentication
+
+The authentication system uses HttpOnly cookies instead of tokens in response bodies. The test client automatically handles this:
+
+### Cookie Handling in Tests
+
+```python
+def test_cookie_authentication_flow(client):
+    """Test complete cookie-based authentication flow."""
+    # 1. Register - cookie is automatically set
+    register_response = client.post("/api/auth/register", json={
+        "email": "cookie@example.com",
+        "password": "testpassword123"
+    })
+    assert register_response.status_code == status.HTTP_201_CREATED
+    assert "access_token" in register_response.cookies
+    
+    # 2. Access protected endpoint - cookie is automatically included
+    me_response = client.get("/api/auth/me")
+    assert me_response.status_code == status.HTTP_200_OK
+    
+    # 3. Logout - cookie is cleared
+    logout_response = client.post("/api/auth/logout")
+    assert logout_response.status_code == status.HTTP_200_OK
+    
+    # 4. Access protected endpoint after logout - should fail
+    me_response_after_logout = client.get("/api/auth/me")
+    assert me_response_after_logout.status_code == status.HTTP_401_UNAUTHORIZED
+```
+
+<Info>
+The TestClient automatically manages cookies between requests, simulating browser behavior. No need to manually extract or set tokens.
+</Info>
 
 ## Running Tests in CI/CD
 
@@ -300,6 +482,8 @@ jobs:
         run: cd backend && uv sync
       - name: Run tests
         run: cd backend && uv run pytest tests/ -v
+      - name: Generate coverage report
+        run: cd backend && uv run pytest tests/ --cov=modules --cov-report=xml
 ```
 ```bash Local CI Check
 cd backend

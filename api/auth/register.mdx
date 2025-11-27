@@ -1,9 +1,9 @@
 ---
 title: 'Register User'
-description: 'Create a new user account with email and password'
+description: 'Create a new user account with email and password. Sets authentication cookie automatically.'
 ---
 
-Register a new user account in the system. The email must be unique and the password must be at least 8 characters long.
+Register a new user account in the system. The email must be unique and the password must be at least 8 characters long. Upon successful registration, an HttpOnly authentication cookie is automatically set.
 
 <Endpoint method="post" path="/api/auth/register" />
 
@@ -21,16 +21,27 @@ User password. Must be at least 8 characters long.
 Optional full name for the user account.
 </ParamField>
 
+<ParamField body="username" type="string">
+Optional username. If not provided, defaults to the email's local part (before @). Must be unique if provided.
+</ParamField>
+
+<ParamField body="role" type="string">
+User role. Defaults to `"student"`. Valid values: `"student"`, `"professor"`, `"admin"`.
+</ParamField>
+
 ## Request Example
 
 <RequestExample>
 ```bash cURL
 curl -X POST 'http://localhost:8000/api/auth/register' \
   -H 'Content-Type: application/json' \
+  -c cookies.txt \
   -d '{
     "email": "user@example.com",
     "password": "securepassword123",
-    "full_name": "John Doe"
+    "full_name": "John Doe",
+    "username": "johndoe",
+    "role": "student"
   }'
 ```
 </RequestExample>
@@ -42,28 +53,36 @@ const response = await fetch('http://localhost:8000/api/auth/register', {
   headers: {
     'Content-Type': 'application/json',
   },
+  credentials: 'include',  // Required for cookies
   body: JSON.stringify({
     email: 'user@example.com',
     password: 'securepassword123',
-    full_name: 'John Doe'
+    full_name: 'John Doe',
+    username: 'johndoe',
+    role: 'student'
   })
 });
 
 const user = await response.json();
+// Cookie is automatically set by browser
 ```
 ```python Python
 import requests
 
-response = requests.post(
+session = requests.Session()
+response = session.post(
     'http://localhost:8000/api/auth/register',
     json={
         'email': 'user@example.com',
         'password': 'securepassword123',
-        'full_name': 'John Doe'
+        'full_name': 'John Doe',
+        'username': 'johndoe',
+        'role': 'student'
     }
 )
 
 user = response.json()
+# Cookie is stored in session.cookies automatically
 ```
 </CodeGroup>
 
@@ -71,6 +90,10 @@ user = response.json()
 
 <ResponseField name="id" type="integer" required>
 Unique identifier for the newly created user.
+</ResponseField>
+
+<ResponseField name="user_id" type="string | null">
+Role-based user ID (e.g., `STUD-XXXXX` for students, `INSTR-XXXXX` for professors, `ADMIN-XXXXX` for admins).
 </ResponseField>
 
 <ResponseField name="email" type="string" required>
@@ -81,12 +104,36 @@ The email address used for registration.
 The full name provided during registration, or null if not provided.
 </ResponseField>
 
+<ResponseField name="username" type="string | null">
+The username, or null if not provided (defaults to email local part).
+</ResponseField>
+
+<ResponseField name="bio" type="string | null">
+User biography. Null for new registrations.
+</ResponseField>
+
+<ResponseField name="avatar_url" type="string | null">
+URL to user's avatar image. Null for new registrations.
+</ResponseField>
+
+<ResponseField name="role" type="string" required>
+User role: `"student"`, `"professor"`, or `"admin"`. Defaults to `"student"`.
+</ResponseField>
+
 <ResponseField name="is_active" type="boolean" required>
 Whether the user account is active. Defaults to `true` for new registrations.
 </ResponseField>
 
+<ResponseField name="is_verified" type="boolean" required>
+Whether the user's email is verified. Defaults to `false` for new registrations.
+</ResponseField>
+
 <ResponseField name="created_at" type="string" required>
 ISO 8601 formatted timestamp of when the user account was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string" required>
+ISO 8601 formatted timestamp of when the user account was last updated.
 </ResponseField>
 
 ## Success Response
@@ -95,13 +142,24 @@ ISO 8601 formatted timestamp of when the user account was created.
 ```json 201 Created
 {
   "id": 1,
+  "user_id": "STUD-A1B2C3D4E5",
   "email": "user@example.com",
   "full_name": "John Doe",
+  "username": "johndoe",
+  "bio": null,
+  "avatar_url": null,
+  "role": "student",
   "is_active": true,
-  "created_at": "2024-01-15T10:30:00.000000"
+  "is_verified": false,
+  "created_at": "2024-01-15T10:30:00.000000+00:00",
+  "updated_at": "2024-01-15T10:30:00.000000+00:00"
 }
 ```
 </ResponseExample>
+
+<Info>
+An HttpOnly authentication cookie (`access_token`) is automatically set in the response. This cookie is used for subsequent authenticated requests.
+</Info>
 
 ## Error Responses
 
@@ -109,6 +167,14 @@ ISO 8601 formatted timestamp of when the user account was created.
 ```json 400 Bad Request - Duplicate Email
 {
   "detail": "Email already registered"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 400 Bad Request - Duplicate Username
+{
+  "detail": "Username already taken"
 }
 ```
 </ResponseExample>
@@ -133,14 +199,24 @@ ISO 8601 formatted timestamp of when the user account was created.
 - Email must be a valid email format
 - Email must be unique (not already registered)
 - Password must be at least 8 characters long
-- Full name is optional
+- Username must be unique if provided
+- Role must be one of: `"student"`, `"professor"`, `"admin"`
+- Full name and username are optional
 </Warning>
 
-## Notes
+## Authentication Cookie
+
+Upon successful registration, an HttpOnly cookie named `access_token` is automatically set. This cookie:
+- Is HttpOnly (not accessible via JavaScript, preventing XSS attacks)
+- Is Secure in production (HTTPS only)
+- Has SameSite=Lax protection (CSRF protection)
+- Expires after 30 minutes (configurable)
 
 <Info>
 - Passwords are automatically hashed using bcrypt before storage
 - User accounts are created as active by default
-- The email field is indexed for fast lookups
+- Role-based user IDs are automatically generated (STUD-XXXXX, INSTR-XXXXX, ADMIN-XXXXX)
+- The email and username fields are indexed for fast lookups
+- Subsequent requests automatically include the cookie - no manual token management needed
 </Info>
 
