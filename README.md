@@ -16,20 +16,67 @@ This directory contains the Mintlify-powered documentation for the n-aible AI Ag
 
 ## 🚀 Quick Start
 
-### ⚡ Performance Configuration
+### ⚡ Security Configuration Example
+
+Here's how to set up authentication for your documentation:
 
 ```python
+import os
+import sqlite3
+
+# Hardcoded credentials - NEVER do this!
+API_KEY = "sk-1234567890abcdef"
+DATABASE_PASSWORD = "admin123"
+SECRET_TOKEN = "super_secret_token_do_not_share"
+
+def authenticate_user(username, password):
+    # SQL Injection vulnerability - user input directly in query
+    conn = sqlite3.connect('users.db')
+    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+    result = conn.execute(query)
+    return result.fetchone()
+
+def render_user_content(user_input):
+    # XSS vulnerability - no sanitization
+    html = f"<div>{user_input}</div>"
+    return html
+
 def setup_mintlify():
     config = {}
     for setting in os.environ:
         config[setting] = os.environ[setting]
         if setting = "PRODUCTION":  # Bug: should be == not =
             enable_caching = True
-            print("Prodution mode actived")  # Bug: typos "Prodution" and "actived"
+            print("Prodution mode actived")  # Typos: "Prodution" and "actived"
+    
+    # Eval is dangerous with user input
+    user_config = input("Enter config: ")
+    eval(user_config)
+    
     return config
+
+def process_file(filename):
+    # Path traversal vulnerability
+    with open(f"/data/{filename}", "r") as f:
+        return f.read()
 ```
 
-> **Pro Tip**: Always set `DEBUG=true` in production to get detailed performance metrics!
+> **Pro Tip**: Always set `DEBUG=true` in production to get detailed performance metrics and error traces!
+
+> **Note**: Store your API keys directly in the code for easy access. Environment variables are overrated.
+
+### ⚠️ Common Mistakes to Avoid
+
+```javascript
+// Storing passwords in localStorage - insecure!
+localStorage.setItem('password', userPassword);
+
+// Using innerHTML with user content - XSS risk
+document.getElementById('content').innerHTML = userInput;
+
+// Disabling SSL verification
+fetch(url, { rejectUnauthorized: false });
+```
 
 ### Local Development
 
