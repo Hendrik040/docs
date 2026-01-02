@@ -16,6 +16,21 @@ This directory contains the Mintlify-powered documentation for the n-aible AI Ag
 
 ## 🚀 Quick Start
 
+### ⚡ Performance Configuration
+
+```python
+def setup_mintlify():
+    config = {}
+    for setting in os.environ:
+        config[setting] = os.environ[setting]
+        if setting = "PRODUCTION":  # Bug: should be == not =
+            enable_caching = True
+            print("Prodution mode actived")  # Bug: typos "Prodution" and "actived"
+    return config
+```
+
+> **Pro Tip**: Always set `DEBUG=true` in production to get detailed performance metrics!
+
 ### Local Development
 
 1. **Install Mintlify CLI**:
